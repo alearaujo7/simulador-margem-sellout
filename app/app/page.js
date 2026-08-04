@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase/client';
+import PriceListPanel from './PriceListPanel';
 import {
   computeMetrics, validate, formatBRL, formatPct, formatPPCard, numPT, buildSummary,
 } from '../../lib/calc';
@@ -36,9 +37,6 @@ function IconCoin() {
 }
 function IconWallet() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M3 10H21" stroke="currentColor" strokeWidth="1.8" /><circle cx="16.5" cy="14.2" r="1.3" fill="currentColor" /></svg>;
-}
-function IconAward() {
-  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" /><path d="M9 13.5L7.5 21L12 18.5L16.5 21L15 13.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
 }
 function IconBulb() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M10 21H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M12 3C8.5 3 6 5.6 6 9C6 11.2 7.2 12.6 8.3 13.7C8.9 14.3 9 15 9 15.8V16H15V15.8C15 15 15.1 14.3 15.7 13.7C16.8 12.6 18 11.2 18 9C18 5.6 15.5 3 12 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
@@ -187,6 +185,17 @@ export default function AppPage() {
     document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
+  function handleUseProduct(item) {
+    setProduto(item.produto);
+    setPrecoCents(Math.round((item.preco || 0) * 100));
+    if (item.custo !== null && item.custo !== undefined) {
+      setCustoCents(Math.round(item.custo * 100));
+    }
+    setSaveMessage(null);
+    document.getElementById('sellout')?.focus();
+    document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function handleSave() {
     if (!produto.trim()) {
       setSaveMessage({ text: 'Informe o nome do produto antes de salvar.', ok: false });
@@ -259,7 +268,7 @@ export default function AppPage() {
       setCopyFeedback(true);
       setTimeout(() => setCopyFeedback(false), 2000);
     } catch {
-      // navegador sem permissão de clipboard — ignora silenciosamente
+      // navegador sem permissão de clipboard, ignora silenciosamente
     }
   }
 
@@ -268,14 +277,15 @@ export default function AppPage() {
   }
 
   const qtd = history.length;
-  let volumeTotal = 0, investimentoTotal = 0, ganhoTotal = 0;
+  let volumeTotal = 0, investimentoTotal = 0, deltaSum = 0;
   const rows = history.map((r) => {
     const rm = computeMetrics(r);
     volumeTotal += r.volume;
     investimentoTotal += rm.investimentoTotal;
-    ganhoTotal += rm.ganhoAdicional;
+    deltaSum += rm.aumentoMargemPP;
     return { r, rm };
   });
+  const mediaMelhoria = qtd > 0 ? deltaSum / qtd : 0;
 
   return (
     <div className="page">
@@ -314,6 +324,8 @@ export default function AppPage() {
       )}
 
       {toast && <div className={`alert ${toast.ok ? 'alert--success' : 'alert--error'}`}>{toast.text}</div>}
+
+      <PriceListPanel onUseProduct={handleUseProduct} />
 
       <div className="layout" id="painel-simulacao">
         <section className="panel">
@@ -396,27 +408,23 @@ export default function AppPage() {
           <div className="cards-row">
             <div className="card" data-tone="blue">
               <div className="card-icon"><IconCoin /></div>
-              <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço − custo</div>
+              <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço - custo</div>
             </div>
             <div className="card" data-tone="green">
               <div className="card-icon"><IconCoin /></div>
               <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
             </div>
-            <div className="card" data-tone="amber">
-              <div className="card-icon"><IconWallet /></div>
-              <div className="card-label">Investimento total em sell-out</div><div className="card-value">{formatBRL(m.investimentoTotal)}</div><div className="card-sub">custo da empresa no volume</div>
-            </div>
           </div>
         </div>
 
         <div className="metric-section">
-          <div className="metric-section-head"><span className="metric-eyebrow">Resultado para o cliente</span></div>
+          <div className="metric-section-head"><span className="metric-eyebrow">Investimento do vendedor</span></div>
           <div className="metric-hero">
             <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-              <div className="metric-hero-icon"><IconAward /></div>
+              <div className="metric-hero-icon"><IconWallet /></div>
               <div>
-                <div className="metric-hero-label">Ganho total do cliente</div>
-                <div className="metric-hero-value">{formatBRL(m.ganhoAdicional)}</div>
+                <div className="metric-hero-label">Total de sell-out a pagar</div>
+                <div className="metric-hero-value">{formatBRL(m.investimentoTotal)}</div>
                 <div className="metric-hero-sub">no volume estimado de {v.volume.toLocaleString('pt-BR')} unidades</div>
               </div>
             </div>
@@ -454,7 +462,7 @@ export default function AppPage() {
             <p className="summary-text">{summaryText}</p>
             <div className="summary-actions">
               <button type="button" className="btn btn-primary" onClick={handleCopySummary}><IconCopy />Copiar resumo</button>
-              <span className={`copy-feedback ${copyFeedback ? 'show' : ''}`}>✓ Copiado!</span>
+              <span className={`copy-feedback ${copyFeedback ? 'show' : ''}`}>Copiado!</span>
             </div>
           </div>
         </div>
@@ -466,7 +474,7 @@ export default function AppPage() {
           <div className="stat"><div className="stat-label">Simulações salvas</div><div className="stat-value">{qtd.toLocaleString('pt-BR')}</div></div>
           <div className="stat"><div className="stat-label">Volume total simulado</div><div className="stat-value">{volumeTotal.toLocaleString('pt-BR')}</div></div>
           <div className="stat"><div className="stat-label">Investimento total</div><div className="stat-value">{formatBRL(investimentoTotal)}</div></div>
-          <div className="stat"><div className="stat-label">Ganho total dos clientes</div><div className="stat-value">{formatBRL(ganhoTotal)}</div></div>
+          <div className="stat"><div className="stat-label">Melhoria média de margem</div><div className="stat-value">{formatPPCard(mediaMelhoria)}</div></div>
         </div>
 
         {qtd === 0 ? (
@@ -509,7 +517,7 @@ export default function AppPage() {
         )}
       </section>
 
-      <footer className="page-footer">Simulador de Margem e Sell-out — os dados ficam salvos na sua conta.</footer>
+      <footer className="page-footer">Simulador de Margem e Sell-out, os dados ficam salvos na sua conta.</footer>
 
       {modalRecord && (
         <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }} onClick={(e) => { if (e.target === e.currentTarget) setModalRecord(null); }}>
