@@ -39,10 +39,11 @@ export default function LandingPage() {
 
       <section className="hero">
         <div className="hero-inner">
-          <h1>Veja quanto sua condição comercial melhora a margem do cliente antes de fechar a negociação.</h1>
+          <h1>Saiba exatamente quanto vai te custar antes de fechar a negociação.</h1>
           <p className="lead">
             Ferramenta feita para vendedores, indústrias e distribuidores. Preencha custo, preço e sell-out
-            e receba na hora a nova margem, o investimento total e um argumento comercial pronto pra usar.
+            e veja na hora quanto de verba você vai precisar, com alerta automático quando a margem que você
+            está dando ao cliente fica alta demais.
           </p>
           <div className="hero-ctas">
             <Link href="/cadastro" className="btn btn-lg btn-white">Criar conta grátis</Link>
@@ -52,7 +53,7 @@ export default function LandingPage() {
       </section>
 
       <section className="section">
-        <h2 className="section-title">Tudo que você precisa numa negociação</h2>
+        <h2 className="section-title">Tudo que você precisa pra negociar sem perder dinheiro</h2>
         <p className="section-lead">Sem planilha, sem calculadora improvisada. Um resultado claro, em segundos.</p>
 
         <div className="feature-grid">
@@ -63,8 +64,8 @@ export default function LandingPage() {
           </div>
           <div className="feature-card">
             <div className="feature-icon"><IconChart /></div>
-            <h3>Antes e depois visual</h3>
-            <p>Um termômetro de margem mostra de forma clara o quanto o sell-out melhora a condição do cliente.</p>
+            <h3>Alerta de verba</h3>
+            <p>Quando a margem cedida ao cliente fica alta demais, você recebe um aviso na hora, antes de comprometer mais verba do que devia.</p>
           </div>
           <div className="feature-card">
             <div className="feature-icon"><IconLink /></div>
@@ -74,7 +75,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="footer">Simulador de Margem e Sell-out, feito para negociações comerciais.</footer>
+      <footer className="footer">Simulador de Margem e Sell-out, feito para vendedores negociarem com segurança.</footer>
     </>
   );
 }
