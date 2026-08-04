@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import { createClient } from '../../lib/supabase/client';
 import PriceListPanel from './PriceListPanel';
 import {
@@ -37,6 +38,9 @@ function IconCoin() {
 }
 function IconWallet() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M3 10H21" stroke="currentColor" strokeWidth="1.8" /><circle cx="16.5" cy="14.2" r="1.3" fill="currentColor" /></svg>;
+}
+function IconDownload() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 4V15M12 15L8 11M12 15L16 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 17V18.5C4 19.88 5.12 21 6.5 21H17.5C18.88 21 20 19.88 20 18.5V17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
 }
 function IconBulb() {
   return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M10 21H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M12 3C8.5 3 6 5.6 6 9C6 11.2 7.2 12.6 8.3 13.7C8.9 14.3 9 15 9 15.8V16H15V15.8C15 15 15.1 14.3 15.7 13.7C16.8 12.6 18 11.2 18 9C18 5.6 15.5 3 12 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
@@ -269,6 +273,31 @@ export default function AppPage() {
     }
   }
 
+  function handleExportExcel(rowsToExport) {
+    const headers = ['Produto', 'Custo', 'Preço', 'Margem atual (%)', 'Sell-out', 'Nova margem (%)', 'Volume', 'Investimento total', 'Data'];
+    const data = rowsToExport.map(({ r, rm }) => [
+      r.produto,
+      r.custo,
+      r.preco,
+      Number(rm.margemAtual.toFixed(2)),
+      r.sellout,
+      Number(rm.novaMargem.toFixed(2)),
+      r.volume,
+      Number(rm.investimentoTotal.toFixed(2)),
+      formatDate(r.created_at),
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!cols'] = [{ wch: 32 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+    const dataArquivo = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `historico-simulacoes-${dataArquivo}.xlsx`);
+  }
+
+  function handleExportPdf() {
+    window.print();
+  }
+
   if (loading) {
     return <div className="page"><p style={{ color: 'var(--text-secondary)' }}>Carregando...</p></div>;
   }
@@ -286,6 +315,34 @@ export default function AppPage() {
 
   return (
     <div className="page">
+      <div className="print-sheet">
+        <h2>Simulador de Margem e Sell-out</h2>
+        <p>Histórico de simulações, gerado em {new Date().toLocaleDateString('pt-BR')}</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th><th>Custo</th><th>Preço</th><th>Margem atual</th><th>Sell-out</th>
+              <th>Nova margem</th><th>Volume</th><th>Investimento</th><th>Data</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ r, rm }) => (
+              <tr key={r.id}>
+                <td>{r.produto}</td>
+                <td>{formatBRL(r.custo)}</td>
+                <td>{formatBRL(r.preco)}</td>
+                <td>{formatPct(rm.margemAtual)}</td>
+                <td>{formatBRL(r.sellout)}</td>
+                <td>{formatPct(rm.novaMargem)}</td>
+                <td>{r.volume.toLocaleString('pt-BR')}</td>
+                <td>{formatBRL(rm.investimentoTotal)}</td>
+                <td>{formatDate(r.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       <header className="top-bar">
         <div className="top-bar-left">
           <div className="brand-mark">M+S</div>
@@ -367,44 +424,64 @@ export default function AppPage() {
       <section className="cards-section">
         <div className="metric-section">
           <div className="metric-section-head"><span className="metric-eyebrow">Indicadores de margem</span></div>
-          <div className="cards-row">
-            <div className="card" data-tone="blue">
-              <div className="card-icon"><IconPercent /></div>
-              <div className="card-label">Margem atual</div><div className="card-value">{formatPct(m.margemAtual)}</div><div className="card-sub">antes do incentivo</div>
+
+          <div className="before-after-group">
+            <span className="ba-tag ba-tag--before">Antes do sell-out</span>
+            <div className="cards-row cards-row-2">
+              <div className="card" data-tone="blue">
+                <div className="card-icon"><IconPercent /></div>
+                <div className="card-label">Margem atual</div><div className="card-value">{formatPct(m.margemAtual)}</div><div className="card-sub">antes do incentivo</div>
+              </div>
+              <div className="card" data-tone="blue">
+                <div className="card-icon"><IconLayers /></div>
+                <div className="card-label">Markup</div><div className="card-value">{formatPct(m.markup)}</div><div className="card-sub">sobre o custo atual</div>
+              </div>
             </div>
-            <div className="card" data-tone="green">
-              <div className="card-icon"><IconTrendUp /></div>
-              <div className="card-label">Nova margem</div><div className="card-value">{formatPct(m.novaMargem)}</div><div className="card-sub">depois do sell-out</div>
-            </div>
-            <div className="card" data-tone={m.aumentoMargemPP < 0 ? 'red' : 'green'}>
-              <div className="card-icon"><IconTrendUp /></div>
-              <div className="card-label">Melhoria de margem</div><div className="card-value">{formatPPCard(m.aumentoMargemPP)}</div><div className="card-sub">pontos percentuais</div>
-            </div>
-            <div className="card" data-tone="blue">
-              <div className="card-icon"><IconLayers /></div>
-              <div className="card-label">Markup</div><div className="card-value">{formatPct(m.markup)}</div><div className="card-sub">sobre o custo atual</div>
+          </div>
+
+          <div className="before-after-group">
+            <span className="ba-tag ba-tag--after">Com o sell-out</span>
+            <div className="cards-row cards-row-2">
+              <div className="card" data-tone="green">
+                <div className="card-icon"><IconTrendUp /></div>
+                <div className="card-label">Nova margem</div><div className="card-value">{formatPct(m.novaMargem)}</div><div className="card-sub">depois do sell-out</div>
+              </div>
+              <div className="card" data-tone={m.aumentoMargemPP < 0 ? 'red' : 'green'}>
+                <div className="card-icon"><IconTrendUp /></div>
+                <div className="card-label">Melhoria de margem</div><div className="card-value">{formatPPCard(m.aumentoMargemPP)}</div><div className="card-sub">pontos percentuais</div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="metric-section">
           <div className="metric-section-head"><span className="metric-eyebrow">Indicadores financeiros</span></div>
-          <div className="cards-row">
-            <div className="card" data-tone="blue">
-              <div className="card-icon"><IconCoin /></div>
-              <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço - custo</div>
+
+          <div className="before-after-group">
+            <span className="ba-tag ba-tag--before">Antes do sell-out</span>
+            <div className="cards-row cards-row-2">
+              <div className="card" data-tone="blue">
+                <div className="card-icon"><IconCoin /></div>
+                <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço - custo</div>
+              </div>
+              <div className="card" data-tone="blue">
+                <div className="card-icon"><IconWallet /></div>
+                <div className="card-label">Lucro total (atual)</div><div className="card-value">{formatBRL(m.lucroTotalAntes)}</div><div className="card-sub">no volume estimado</div>
+              </div>
             </div>
-            <div className="card" data-tone="green">
-              <div className="card-icon"><IconCoin /></div>
-              <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
-            </div>
-            <div className="card" data-tone="blue">
-              <div className="card-icon"><IconWallet /></div>
-              <div className="card-label">Lucro total (atual)</div><div className="card-value">{formatBRL(m.lucroTotalAntes)}</div><div className="card-sub">no volume estimado</div>
-            </div>
-            <div className="card" data-tone="green">
-              <div className="card-icon"><IconWallet /></div>
-              <div className="card-label">Novo lucro total</div><div className="card-value">{formatBRL(m.lucroTotalDepois)}</div><div className="card-sub">no volume estimado</div>
+          </div>
+
+          <div className="before-after-group">
+            <span className="ba-tag ba-tag--after">Com o sell-out</span>
+            <div className="cards-row cards-row-2">
+              <div className="card" data-tone="green">
+                <div className="card-icon"><IconCoin /></div>
+                <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
+              </div>
+              <div className="card" data-tone="green">
+                <div className="card-icon"><IconWallet /></div>
+                <div className="card-label">Novo lucro total</div><div className="card-value">{formatBRL(m.lucroTotalDepois)}</div><div className="card-sub">no volume estimado</div>
+              </div>
             </div>
           </div>
         </div>
@@ -461,7 +538,15 @@ export default function AppPage() {
       </section>
 
       <section className="panel">
-        <h2>Histórico de simulações</h2>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <h2>Histórico de simulações</h2>
+          {qtd > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => handleExportExcel(rows)}><IconDownload />Baixar Excel</button>
+              <button type="button" className="btn btn-ghost btn-small" onClick={handleExportPdf}><IconDownload />Baixar PDF</button>
+            </div>
+          )}
+        </div>
         <div className="history-stats">
           <div className="stat"><div className="stat-label">Simulações salvas</div><div className="stat-value">{qtd.toLocaleString('pt-BR')}</div></div>
           <div className="stat"><div className="stat-label">Volume total simulado</div><div className="stat-value">{volumeTotal.toLocaleString('pt-BR')}</div></div>
