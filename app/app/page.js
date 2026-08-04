@@ -116,7 +116,6 @@ export default function AppPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [plan, setPlan] = useState('free');
   const [history, setHistory] = useState([]);
 
   const [produto, setProduto] = useState(emptyForm.produto);
@@ -142,10 +141,6 @@ export default function AppPage() {
       const supabase = createClient();
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setUser(currentUser);
-      if (currentUser) {
-        const { data: profile } = await supabase.from('profiles').select('plan').eq('id', currentUser.id).single();
-        setPlan(profile?.plan || 'free');
-      }
       await loadHistory();
       setLoading(false);
     })();
@@ -298,22 +293,9 @@ export default function AppPage() {
           </div>
         </div>
         <div className="top-bar-actions">
-          <span className={`plan-badge ${plan === 'pro' ? 'pro' : ''}`}>{plan === 'pro' ? 'Plano Pro' : 'Plano Grátis'}</span>
           <button type="button" className="btn btn-ghost" onClick={handleLogout}>Sair</button>
         </div>
       </header>
-
-      {plan !== 'pro' && (
-        <div className="upgrade-banner">
-          <div>
-            <strong>Plano Grátis:</strong>
-            <p>até 5 simulações salvas e sem link de compartilhamento.</p>
-          </div>
-          <a className="btn btn-primary btn-small" href="mailto:contato@seudominio.com?subject=Upgrade%20para%20o%20plano%20Pro">
-            Fazer upgrade
-          </a>
-        </div>
-      )}
 
       {alerts.length > 0 && (
         <div className="alert-area">
