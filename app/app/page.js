@@ -22,6 +22,76 @@ function IconTrash() {
 function IconShare() {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="18" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.8" /><circle cx="6" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.8" /><circle cx="18" cy="19" r="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M8.2 10.8L15.8 6.2M8.2 13.2L15.8 17.8" stroke="currentColor" strokeWidth="1.8" /></svg>;
 }
+function IconPercent() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.8" /><circle cx="17" cy="17" r="3" stroke="currentColor" strokeWidth="1.8" /><path d="M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+}
+function IconTrendUp() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 17L10 10L14 14L21 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M15 7H21V13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+function IconLayers() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3L21 8L12 13L3 8L12 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M3 13L12 18L21 13" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /><path d="M3 17.5L12 22.5L21 17.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+}
+function IconCoin() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" /><path d="M12 7.5V16.5M9.5 9.8C9.5 8.8 10.6 8 12 8C13.4 8 14.5 8.8 14.5 9.8C14.5 12 9.5 12 9.5 14.2C9.5 15.2 10.6 16 12 16C13.4 16 14.5 15.2 14.5 14.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>;
+}
+function IconWallet() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M3 10H21" stroke="currentColor" strokeWidth="1.8" /><circle cx="16.5" cy="14.2" r="1.3" fill="currentColor" /></svg>;
+}
+function IconAward() {
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.8" /><path d="M9 13.5L7.5 21L12 18.5L16.5 21L15 13.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+}
+function IconBulb() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 18H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M10 21H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /><path d="M12 3C8.5 3 6 5.6 6 9C6 11.2 7.2 12.6 8.3 13.7C8.9 14.3 9 15 9 15.8V16H15V15.8C15 15 15.1 14.3 15.7 13.7C16.8 12.6 18 11.2 18 9C18 5.6 15.5 3 12 3Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>;
+}
+function IconArrow() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
+function MarginGauge({ margemAtual, novaMargem, aumentoMargemPP }) {
+  const scaleMax = Math.max(60, Math.ceil((Math.max(margemAtual, novaMargem, 0) + 10) / 10) * 10);
+  const clamp01 = (val) => Math.min(1, Math.max(0, val / scaleMax));
+  const beforeFrac = clamp01(margemAtual);
+  const afterFrac = clamp01(novaMargem);
+  const isPositive = aumentoMargemPP >= 0;
+
+  const cx = 130, cy = 138, r = 108, strokeW = 16;
+  const circumference = Math.PI * r;
+  const baseFrac = Math.min(beforeFrac, afterFrac);
+  const deltaFrac = Math.abs(afterFrac - beforeFrac);
+  const baseLen = baseFrac * circumference;
+  const deltaLen = deltaFrac * circumference;
+  const pathD = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
+
+  const maxFrac = Math.max(beforeFrac, afterFrac);
+  const markerAngle = Math.PI * (1 - maxFrac);
+  const markerX = cx + r * Math.cos(markerAngle);
+  const markerY = cy - r * Math.sin(markerAngle);
+  const deltaColor = isPositive ? 'var(--green)' : 'var(--red)';
+
+  return (
+    <div className="gauge-card-body">
+      <div className="gauge-svg-wrap">
+        <svg viewBox="0 0 260 158" width="100%" style={{ overflow: 'visible' }}>
+          <path d={pathD} stroke="var(--surface-alt)" strokeWidth={strokeW} fill="none" strokeLinecap="round" />
+          <path d={pathD} stroke="var(--blue)" strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeDasharray={`${baseLen} ${circumference}`} />
+          <path d={pathD} stroke={deltaColor} strokeWidth={strokeW} fill="none" strokeLinecap="round" strokeDasharray={`${deltaLen} ${circumference}`} strokeDashoffset={-baseLen} />
+          <circle cx={markerX} cy={markerY} r="7.5" fill="#fff" stroke={deltaColor} strokeWidth="3.5" />
+        </svg>
+        <span className="gauge-scale-label start">0%</span>
+        <span className="gauge-scale-label end">{scaleMax}%</span>
+        <div className="gauge-center">
+          <div className="gauge-center-label">Nova margem</div>
+          <div className="gauge-center-value">{formatPct(novaMargem)}</div>
+          <div className="gauge-center-sub">antes: {formatPct(margemAtual)}</div>
+        </div>
+      </div>
+      <div className={`gauge-delta-pill ${isPositive ? '' : 'negative'}`}>
+        <IconTrendUp />
+        {formatPPCard(aumentoMargemPP)} de {isPositive ? 'melhoria' : 'queda'} na margem
+      </div>
+    </div>
+  );
+}
 
 function moneyDisplay(cents) {
   return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -88,10 +158,6 @@ export default function AppPage() {
   const alerts = validate(v);
   const hasBlockingError = alerts.some((a) => a.level === 'error');
   const summaryText = buildSummary(v, m);
-
-  const scaleMax = Math.max(60, Math.ceil((Math.max(m.margemAtual, m.novaMargem, 0) + 10) / 10) * 10);
-  const beforePct = Math.min(100, Math.max(0, m.margemAtual)) / scaleMax * 100;
-  const afterPct = Math.min(100, Math.max(0, m.novaMargem)) / scaleMax * 100;
 
   async function handleLogout() {
     const supabase = createClient();
@@ -297,40 +363,64 @@ export default function AppPage() {
 
         <section className="panel gauge-panel">
           <h2>Termômetro de margem</h2>
-          <p className="panel-hint">A barra verde mostra até onde a margem vai com o sell-out.</p>
-          <div className="gauge">
-            <div className="gauge-row">
-              <span className="gauge-tag">Atual</span>
-              <div className="gauge-track"><div className="gauge-fill gauge-fill--before" style={{ width: beforePct + '%' }} /></div>
-              <span className="gauge-value">{formatPct(m.margemAtual)}</span>
-            </div>
-            <div className="gauge-row">
-              <span className="gauge-tag">Novo</span>
-              <div className="gauge-track">
-                <div className={`gauge-fill gauge-fill--after ${m.aumentoMargemPP < 0 ? 'negative' : ''}`} style={{ width: afterPct + '%' }} />
-                <div className="gauge-marker" style={{ left: beforePct + '%' }} />
-              </div>
-              <span className="gauge-value">{formatPct(m.novaMargem)}</span>
-            </div>
-            <div className={`gauge-delta ${m.aumentoMargemPP < 0 ? 'negative' : ''}`}>
-              {formatPPCard(m.aumentoMargemPP)} de {m.aumentoMargemPP >= 0 ? 'melhoria' : 'queda'} na margem
-            </div>
-          </div>
+          <p className="panel-hint">O arco mostra a margem atual e até onde ela vai com o sell-out.</p>
+          <MarginGauge margemAtual={m.margemAtual} novaMargem={m.novaMargem} aumentoMargemPP={m.aumentoMargemPP} />
         </section>
       </div>
 
       <section className="cards-section">
-        <div className="cards-row">
-          <div className="card" data-tone="blue"><div className="card-label">Margem atual</div><div className="card-value">{formatPct(m.margemAtual)}</div><div className="card-sub">antes do incentivo</div></div>
-          <div className="card" data-tone="green"><div className="card-label">Nova margem</div><div className="card-value">{formatPct(m.novaMargem)}</div><div className="card-sub">depois do sell-out</div></div>
-          <div className="card" data-tone={m.aumentoMargemPP < 0 ? 'red' : 'green'}><div className="card-label">Melhoria de margem</div><div className="card-value">{formatPPCard(m.aumentoMargemPP)}</div><div className="card-sub">pontos percentuais</div></div>
-          <div className="card" data-tone="blue"><div className="card-label">Markup</div><div className="card-value">{formatPct(m.markup)}</div><div className="card-sub">sobre o custo atual</div></div>
+        <div className="metric-section">
+          <div className="metric-section-head"><span className="metric-eyebrow">Indicadores de margem</span></div>
+          <div className="cards-row">
+            <div className="card" data-tone="blue">
+              <div className="card-icon"><IconPercent /></div>
+              <div className="card-label">Margem atual</div><div className="card-value">{formatPct(m.margemAtual)}</div><div className="card-sub">antes do incentivo</div>
+            </div>
+            <div className="card" data-tone="green">
+              <div className="card-icon"><IconTrendUp /></div>
+              <div className="card-label">Nova margem</div><div className="card-value">{formatPct(m.novaMargem)}</div><div className="card-sub">depois do sell-out</div>
+            </div>
+            <div className="card" data-tone={m.aumentoMargemPP < 0 ? 'red' : 'green'}>
+              <div className="card-icon"><IconTrendUp /></div>
+              <div className="card-label">Melhoria de margem</div><div className="card-value">{formatPPCard(m.aumentoMargemPP)}</div><div className="card-sub">pontos percentuais</div>
+            </div>
+            <div className="card" data-tone="blue">
+              <div className="card-icon"><IconLayers /></div>
+              <div className="card-label">Markup</div><div className="card-value">{formatPct(m.markup)}</div><div className="card-sub">sobre o custo atual</div>
+            </div>
+          </div>
         </div>
-        <div className="cards-row">
-          <div className="card" data-tone="blue"><div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço − custo</div></div>
-          <div className="card" data-tone="green"><div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div></div>
-          <div className="card" data-tone="amber"><div className="card-label">Investimento total em sell-out</div><div className="card-value">{formatBRL(m.investimentoTotal)}</div><div className="card-sub">custo da empresa no volume</div></div>
-          <div className="card" data-tone="green"><div className="card-label">Ganho total do cliente</div><div className="card-value">{formatBRL(m.ganhoAdicional)}</div><div className="card-sub">no volume estimado</div></div>
+
+        <div className="metric-section">
+          <div className="metric-section-head"><span className="metric-eyebrow">Indicadores financeiros</span></div>
+          <div className="cards-row">
+            <div className="card" data-tone="blue">
+              <div className="card-icon"><IconCoin /></div>
+              <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço − custo</div>
+            </div>
+            <div className="card" data-tone="green">
+              <div className="card-icon"><IconCoin /></div>
+              <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
+            </div>
+            <div className="card" data-tone="amber">
+              <div className="card-icon"><IconWallet /></div>
+              <div className="card-label">Investimento total em sell-out</div><div className="card-value">{formatBRL(m.investimentoTotal)}</div><div className="card-sub">custo da empresa no volume</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="metric-section">
+          <div className="metric-section-head"><span className="metric-eyebrow">Resultado para o cliente</span></div>
+          <div className="metric-hero">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+              <div className="metric-hero-icon"><IconAward /></div>
+              <div>
+                <div className="metric-hero-label">Ganho total do cliente</div>
+                <div className="metric-hero-value">{formatBRL(m.ganhoAdicional)}</div>
+                <div className="metric-hero-sub">no volume estimado de {v.volume.toLocaleString('pt-BR')} unidades</div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -344,9 +434,6 @@ export default function AppPage() {
             <div className="compare-row"><span>Lucro por unidade</span><span>{formatBRL(m.lucroUnitario)}</span></div>
             <div className="compare-row"><span>Lucro total no volume</span><span>{formatBRL(m.lucroTotalAntes)}</span></div>
           </div>
-          <div className="compare-arrow" aria-hidden="true">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M4 12H20M20 12L14 6M20 12L14 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </div>
           <div className="compare-col after">
             <h3>Depois</h3>
             <div className="compare-row"><span>Custo efetivo</span><span>{formatBRL(m.novoCusto)}</span></div>
@@ -354,16 +441,22 @@ export default function AppPage() {
             <div className="compare-row"><span>Novo lucro por unidade</span><span>{formatBRL(m.novoLucroUnitario)}</span></div>
             <div className="compare-row"><span>Novo lucro total</span><span>{formatBRL(m.lucroTotalDepois)}</span></div>
           </div>
+          <div className="compare-connector" aria-hidden="true"><IconArrow /></div>
         </div>
       </section>
 
       <section className="panel">
         <h2>Resumo comercial</h2>
         <p className="panel-hint">Frase pronta para usar na negociação.</p>
-        <p className="summary-text">{summaryText}</p>
-        <div className="summary-actions">
-          <button type="button" className="btn btn-primary" onClick={handleCopySummary}>Copiar resumo</button>
-          <span className={`copy-feedback ${copyFeedback ? 'show' : ''}`}>Copiado!</span>
+        <div className="insight-card">
+          <div className="insight-icon"><IconBulb /></div>
+          <div>
+            <p className="summary-text">{summaryText}</p>
+            <div className="summary-actions">
+              <button type="button" className="btn btn-primary" onClick={handleCopySummary}><IconCopy />Copiar resumo</button>
+              <span className={`copy-feedback ${copyFeedback ? 'show' : ''}`}>✓ Copiado!</span>
+            </div>
+          </div>
         </div>
       </section>
 
