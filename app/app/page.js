@@ -398,6 +398,14 @@ export default function AppPage() {
               <div className="card-icon"><IconCoin /></div>
               <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
             </div>
+            <div className="card" data-tone="blue">
+              <div className="card-icon"><IconWallet /></div>
+              <div className="card-label">Lucro total (atual)</div><div className="card-value">{formatBRL(m.lucroTotalAntes)}</div><div className="card-sub">no volume estimado</div>
+            </div>
+            <div className="card" data-tone="green">
+              <div className="card-icon"><IconWallet /></div>
+              <div className="card-label">Novo lucro total</div><div className="card-value">{formatBRL(m.lucroTotalDepois)}</div><div className="card-sub">no volume estimado</div>
+            </div>
           </div>
         </div>
 
