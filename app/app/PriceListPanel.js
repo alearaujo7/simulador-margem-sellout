@@ -16,19 +16,23 @@ function IconTrashSmall() {
 }
 
 function normalizeHeader(h) {
-  return String(h || '')
+  return String(h == null ? '' : h)
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-const CODIGO_ALIASES = ['codigo', 'cod', 'ean', 'sku', 'codbarras', 'codigobarras'];
-const PRODUTO_ALIASES = ['produto', 'descricao', 'nome', 'item', 'mercadoria'];
-const PRECO_ALIASES = ['preco', 'precovenda', 'venda', 'precodevenda', 'pvenda'];
-const CUSTO_ALIASES = ['custo', 'custoatual', 'custounitario', 'precocusto'];
+// Ordem importa: categorias mais específicas primeiro, pra "custo" não
+// ser roubado por um padrão largo de "preço", por exemplo.
+const FIELD_PATTERNS = [
+  ['codigo', ['codbarras', 'codigobarras', 'codigo', 'cod', 'ean', 'sku', 'referencia', 'ref']],
+  ['produto', ['produto', 'descricao', 'descr', 'nome', 'item', 'mercadoria', 'material']],
+  ['custo', ['custo', 'compra', 'aquisicao']],
+  ['preco', ['precovenda', 'valorvenda', 'vendaunit', 'preco', 'valor', 'venda', 'vlr', 'tabela']],
+];
 
 function parseNumber(val) {
   if (typeof val === 'number') return val;
-  if (!val) return null;
+  if (val === null || val === undefined) return null;
   const s = String(val).trim().replace(/[R$\s]/g, '');
   if (s === '') return null;
   // aceita tanto "1.234,56" quanto "1234.56"
@@ -37,35 +41,86 @@ function parseNumber(val) {
   return isNaN(n) ? null : n;
 }
 
-function parseWorkbookRows(workbook) {
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  if (json.length === 0) return { rows: [], skipped: 0 };
-
-  const sampleKeys = Object.keys(json[0]);
-  const keyMap = {};
-  sampleKeys.forEach((key) => {
-    const norm = normalizeHeader(key);
-    if (!keyMap.codigo && CODIGO_ALIASES.includes(norm)) keyMap.codigo = key;
-    if (!keyMap.produto && PRODUTO_ALIASES.includes(norm)) keyMap.produto = key;
-    if (!keyMap.preco && PRECO_ALIASES.includes(norm)) keyMap.preco = key;
-    if (!keyMap.custo && CUSTO_ALIASES.includes(norm)) keyMap.custo = key;
+// Detecta, numa linha de cabeçalho candidata, quais colunas correspondem
+// a código, produto, custo e preço. Cada coluna só pode ser usada uma vez.
+function detectColumns(headerRow) {
+  const map = {};
+  const used = new Set();
+  headerRow.forEach((cell, colIndex) => {
+    if (used.has(colIndex)) return;
+    const norm = normalizeHeader(cell);
+    if (!norm) return;
+    for (const [field, patterns] of FIELD_PATTERNS) {
+      if (map[field] !== undefined) continue;
+      if (patterns.some((p) => norm.includes(p))) {
+        map[field] = colIndex;
+        used.add(colIndex);
+        break;
+      }
+    }
   });
+  return map;
+}
 
-  const rows = [];
+function scoreColumns(map) {
+  return Object.keys(map).length;
+}
+
+// Varre as primeiras linhas de uma planilha procurando a linha de cabeçalho
+// (nem sempre é a linha 1: pode ter um título ou linhas em branco acima).
+function findHeaderRow(rows) {
+  let best = { rowIndex: -1, map: {}, score: 0 };
+  const limit = Math.min(rows.length, 15);
+  for (let i = 0; i < limit; i++) {
+    const map = detectColumns(rows[i] || []);
+    const score = scoreColumns(map);
+    if (score > best.score) best = { rowIndex: i, map, score };
+  }
+  return best;
+}
+
+function parseWorkbookRows(workbook) {
+  let best = null;
+  let firstSheetHeaderPreview = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
+    if (rows.length === 0) continue;
+    if (firstSheetHeaderPreview.length === 0) firstSheetHeaderPreview = rows[0];
+
+    const headerInfo = findHeaderRow(rows);
+    // precisa achar pelo menos codigo + produto + preco pra essa aba valer
+    const hasEssentials = headerInfo.map.codigo !== undefined && headerInfo.map.produto !== undefined && headerInfo.map.preco !== undefined;
+    if (hasEssentials && (!best || headerInfo.score > best.headerInfo.score)) {
+      best = { rows, headerInfo };
+    }
+  }
+
+  if (!best) {
+    return { rows: [], skipped: 0, detectedHeaders: firstSheetHeaderPreview.map((h) => String(h)).filter(Boolean) };
+  }
+
+  const { rows, headerInfo } = best;
+  const { map, rowIndex } = headerInfo;
+  const result = [];
   let skipped = 0;
-  json.forEach((row) => {
-    const codigo = keyMap.codigo ? String(row[keyMap.codigo]).trim() : '';
-    const produto = keyMap.produto ? String(row[keyMap.produto]).trim() : '';
-    const preco = keyMap.preco ? parseNumber(row[keyMap.preco]) : null;
-    const custo = keyMap.custo ? parseNumber(row[keyMap.custo]) : null;
+
+  for (let i = rowIndex + 1; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row || row.length === 0) continue;
+    const codigo = map.codigo !== undefined ? String(row[map.codigo] ?? '').trim() : '';
+    const produto = map.produto !== undefined ? String(row[map.produto] ?? '').trim() : '';
+    const preco = map.preco !== undefined ? parseNumber(row[map.preco]) : null;
+    const custo = map.custo !== undefined ? parseNumber(row[map.custo]) : null;
     if (!codigo || !produto || preco === null) {
       skipped += 1;
-      return;
+      continue;
     }
-    rows.push({ codigo, produto, preco, custo });
-  });
-  return { rows, skipped, keyMap };
+    result.push({ codigo, produto, preco, custo });
+  }
+
+  return { rows: result, skipped };
 }
 
 export default function PriceListPanel({ onUseProduct }) {
@@ -106,10 +161,16 @@ export default function PriceListPanel({ onUseProduct }) {
     try {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
-      const { rows, skipped } = parseWorkbookRows(workbook);
+      const { rows, skipped, detectedHeaders } = parseWorkbookRows(workbook);
 
       if (rows.length === 0) {
-        setUploadMessage({ ok: false, text: 'Não encontrei colunas de código, produto e preço nesse arquivo. Confira os títulos das colunas.' });
+        const headersList = detectedHeaders && detectedHeaders.length > 0
+          ? ` Encontrei estas colunas na primeira linha: ${detectedHeaders.join(', ')}.`
+          : '';
+        setUploadMessage({
+          ok: false,
+          text: `Não consegui reconhecer as colunas de código, produto e preço nesse arquivo.${headersList} Renomeie a coluna de preço para algo como "Preço" ou "Valor", e a de código para "Código", "EAN" ou "SKU".`,
+        });
         setUploading(false);
         return;
       }
