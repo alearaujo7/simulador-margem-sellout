@@ -1,5 +1,5 @@
 :root {
-  /* Material Design, superficies neutras, cor com funÃ§Ã£o clara */
+  /* Material Design, superficies neutras, cor com função clara */
   --bg: #f2f2f7;
   --surface: #ffffff;
   --surface-alt: #f6f6fb;
@@ -168,7 +168,7 @@ input { font-family: var(--font-mono); }
 @media (max-width: 880px) { .cards-row { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 480px) { .cards-row { grid-template-columns: 1fr; } }
 
-/* Cards brancos com faixa de cor Ã  esquerda */
+/* Cards brancos com faixa de cor à esquerda */
 .card {
   position: relative; background: var(--surface); border: 1px solid var(--border);
   border-left: 4px solid var(--tone, var(--blue));
@@ -315,3 +315,24 @@ tbody tr:hover { background: var(--surface-alt); }
 
 .footer { text-align: center; color: var(--text-muted); font-size: 12.5px; padding: 34px 20px 54px; }
 .page-footer { text-align: center; color: var(--text-muted); font-size: 12.5px; padding-top: 12px; }
+
+/* ============ Impressão / exportar PDF ============ */
+.print-sheet { display: none; }
+@media print {
+  body * { visibility: hidden; }
+  .print-sheet, .print-sheet * { visibility: visible; }
+  .print-sheet { display: block; position: absolute; top: 0; left: 0; width: 100%; padding: 24px; }
+  .print-sheet h2 { font-size: 18px; margin-bottom: 4px; }
+  .print-sheet p { color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; }
+  .print-sheet table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .print-sheet th, .print-sheet td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; }
+  .print-sheet th { background: #f2f2f2; }
+}
+
+/* ============ Grupos antes / depois nos cards ============ */
+.before-after-group { display: flex; flex-direction: column; gap: 10px; }
+.ba-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.ba-tag--before { color: var(--blue); }
+.ba-tag--after { color: var(--green-dark); }
+.cards-row-2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 480px) { .cards-row-2 { grid-template-columns: 1fr; } }
