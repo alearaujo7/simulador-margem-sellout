@@ -182,10 +182,12 @@ export default function AppPage() {
 
   function handleUseProduct(item) {
     setProduto(item.produto);
-    setPrecoCents(Math.round((item.preco || 0) * 100));
-    if (item.custo !== null && item.custo !== undefined) {
-      setCustoCents(Math.round(item.custo * 100));
-    }
+    const precoDaLista = Math.round((item.preco || 0) * 100);
+    const custoDaLista = (item.custo !== null && item.custo !== undefined)
+      ? Math.round(item.custo * 100)
+      : precoDaLista; // sem coluna de custo na planilha: usa o próprio preço da lista como ponto de partida
+    setPrecoCents(precoDaLista);
+    setCustoCents(custoDaLista);
     setSaveMessage(null);
     document.getElementById('sellout')?.focus();
     document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -300,7 +302,7 @@ export default function AppPage() {
       {alerts.length > 0 && (
         <div className="alert-area">
           {alerts.map((a, i) => (
-            <div key={i} className="alert alert--error">{a.msg}</div>
+            <div key={i} className={`alert ${a.level === 'warning' ? 'alert--warning' : 'alert--error'}`}>{a.msg}</div>
           ))}
         </div>
       )}
