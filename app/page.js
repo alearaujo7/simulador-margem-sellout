@@ -23,7 +23,6 @@ function IconLink() {
     </svg>
   );
 }
-
 export default function LandingPage() {
   return (
     <>
@@ -40,7 +39,7 @@ export default function LandingPage() {
 
       <section className="hero">
         <div className="hero-inner">
-          <h1>Veja quanto sua condição comercial melhora a margem do cliente — antes de fechar a negociação.</h1>
+          <h1>Veja quanto sua condição comercial melhora a margem do cliente antes de fechar a negociação.</h1>
           <p className="lead">
             Ferramenta feita para vendedores, indústrias e distribuidores. Preencha custo, preço e sell-out
             e receba na hora a nova margem, o investimento total e um argumento comercial pronto pra usar.
@@ -60,7 +59,7 @@ export default function LandingPage() {
           <div className="feature-card">
             <div className="feature-icon"><IconBolt /></div>
             <h3>Cálculo em tempo real</h3>
-            <p>Margem, markup, lucro por unidade e investimento total atualizam a cada tecla — sem recarregar nada.</p>
+            <p>Margem, markup, lucro por unidade e investimento total atualizam a cada tecla, sem precisar recarregar nada.</p>
           </div>
           <div className="feature-card">
             <div className="feature-icon"><IconChart /></div>
@@ -70,38 +69,12 @@ export default function LandingPage() {
           <div className="feature-card">
             <div className="feature-icon"><IconLink /></div>
             <h3>Link de compartilhamento</h3>
-            <p>Gere um link só-leitura da simulação para mandar pro cliente ou pro seu time — sem precisar de login.</p>
+            <p>Gere um link só-leitura da simulação para mandar pro cliente ou pro seu time, sem precisar de login.</p>
           </div>
         </div>
       </section>
 
-      <section className="section" style={{ paddingTop: 0 }}>
-        <h2 className="section-title">Planos simples</h2>
-        <p className="section-lead">Comece de graça. Faça upgrade quando precisar de mais.</p>
-
-        <div className="pricing-grid">
-          <div className="price-card">
-            <div className="plan-name">Grátis</div>
-            <div className="price">R$ 0</div>
-            <ul>
-              <li>Simulações ilimitadas na tela</li>
-              <li>Até 5 simulações salvas no histórico</li>
-              <li>Resumo comercial com um clique</li>
-            </ul>
-          </div>
-          <div className="price-card featured">
-            <div className="plan-name">Pro</div>
-            <div className="price">Sob consulta</div>
-            <ul>
-              <li>Histórico ilimitado de simulações</li>
-              <li>Link de compartilhamento para clientes e time</li>
-              <li>Suporte prioritário</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <footer className="footer">Simulador de Margem e Sell-out — feito para negociações comerciais.</footer>
+      <footer className="footer">Simulador de Margem e Sell-out, feito para negociações comerciais.</footer>
     </>
   );
 }
