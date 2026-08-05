@@ -55,7 +55,7 @@ export default function SignupPage() {
   return (
     <div className="page-narrow">
       <div className="auth-brand">
-        <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>M+S</div>
+        <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>L</div>
       </div>
       <div className="auth-card">
         <h1>Criar conta grátis</h1>
