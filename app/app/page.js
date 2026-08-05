@@ -114,7 +114,7 @@ function formatDate(iso) {
   return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
-const emptyForm = { produto: 'Produto exemplo', custoCents: 1131, precoCents: 1890, selloutCents: 60, volume: 5000 };
+const emptyForm = { produto: 'Produto exemplo', custoCents: 1131, precoCents: 1890, selloutCents: 60, volume: 5000, icmsCentesimos: 0 };
 
 export default function AppPage() {
   const router = useRouter();
@@ -127,6 +127,7 @@ export default function AppPage() {
   const [precoCents, setPrecoCents] = useState(emptyForm.precoCents);
   const [selloutCents, setSelloutCents] = useState(emptyForm.selloutCents);
   const [volume, setVolume] = useState(emptyForm.volume);
+  const [icmsCentesimos, setIcmsCentesimos] = useState(emptyForm.icmsCentesimos);
 
   const [editingId, setEditingId] = useState(null);
   const [saveMessage, setSaveMessage] = useState(null);
@@ -150,7 +151,7 @@ export default function AppPage() {
     })();
   }, [loadHistory]);
 
-  const v = { produto, custo: custoCents / 100, preco: precoCents / 100, sellout: selloutCents / 100, volume };
+  const v = { produto, custo: custoCents / 100, preco: precoCents / 100, sellout: selloutCents / 100, volume, icmsPercentual: icmsCentesimos / 100 };
   const m = computeMetrics(v);
   const alerts = validate(v);
   const hasBlockingError = alerts.some((a) => a.level === 'error');
@@ -169,6 +170,7 @@ export default function AppPage() {
     setPrecoCents(0);
     setSelloutCents(0);
     setVolume(0);
+    setIcmsCentesimos(0);
     setEditingId(null);
     setSaveMessage(null);
   }
@@ -180,6 +182,7 @@ export default function AppPage() {
     setPrecoCents(Math.round(record.preco * 100));
     setSelloutCents(Math.round(record.sellout * 100));
     setVolume(record.volume);
+    setIcmsCentesimos(Math.round((record.icms_percentual || 0) * 100));
     setSaveMessage(null);
     document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -194,7 +197,7 @@ export default function AppPage() {
       return;
     }
     const supabase = createClient();
-    const payload = { produto: v.produto, custo: v.custo, preco: v.preco, sellout: v.sellout, volume: v.volume };
+    const payload = { produto: v.produto, custo: v.custo, preco: v.preco, sellout: v.sellout, volume: v.volume, icms_percentual: v.icmsPercentual };
 
     if (editingId) {
       const { error } = await supabase.from('simulations').update(payload).eq('id', editingId);
@@ -213,7 +216,7 @@ export default function AppPage() {
     const supabase = createClient();
     const { error } = await supabase.from('simulations').insert({
       user_id: user.id, produto: record.produto, custo: record.custo, preco: record.preco,
-      sellout: record.sellout, volume: record.volume,
+      sellout: record.sellout, volume: record.volume, icms_percentual: record.icms_percentual,
     });
     if (error) { setToast({ text: friendlyError(error), ok: false }); return; }
     await loadHistory();
@@ -261,11 +264,12 @@ export default function AppPage() {
   }
 
   function handleExportExcel(rowsToExport) {
-    const headers = ['Produto', 'Custo', 'Preço', 'Margem atual (%)', 'Sell-out', 'Nova margem (%)', 'Volume', 'Investimento total', 'Data'];
+    const headers = ['Produto', 'Custo', 'Preço', 'ICMS (%)', 'Margem atual (%)', 'Sell-out', 'Nova margem (%)', 'Volume', 'Investimento total', 'Data'];
     const data = rowsToExport.map(({ r, rm }) => [
       r.produto,
       r.custo,
       r.preco,
+      r.icms_percentual || 0,
       Number(rm.margemAtual.toFixed(2)),
       r.sellout,
       Number(rm.novaMargem.toFixed(2)),
@@ -274,7 +278,7 @@ export default function AppPage() {
       formatDate(r.created_at),
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-    ws['!cols'] = [{ wch: 32 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
+    ws['!cols'] = [{ wch: 32 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 10 }, { wch: 16 }, { wch: 16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
     const dataArquivo = new Date().toISOString().slice(0, 10);
@@ -308,7 +312,7 @@ export default function AppPage() {
         <table>
           <thead>
             <tr>
-              <th>Produto</th><th>Custo</th><th>Preço</th><th>Margem atual</th><th>Sell-out</th>
+              <th>Produto</th><th>Custo</th><th>Preço</th><th>ICMS</th><th>Margem atual</th><th>Sell-out</th>
               <th>Nova margem</th><th>Volume</th><th>Investimento</th><th>Data</th>
             </tr>
           </thead>
@@ -318,6 +322,7 @@ export default function AppPage() {
                 <td>{r.produto}</td>
                 <td>{formatBRL(r.custo)}</td>
                 <td>{formatBRL(r.preco)}</td>
+                <td>{r.icms_percentual ? formatPct(r.icms_percentual) : '-'}</td>
                 <td>{formatPct(rm.margemAtual)}</td>
                 <td>{formatBRL(r.sellout)}</td>
                 <td>{formatPct(rm.novaMargem)}</td>
@@ -387,6 +392,12 @@ export default function AppPage() {
               <label htmlFor="volume">Volume estimado (unidades)</label>
               <input id="volume" className="volume-input" type="text" inputMode="numeric" value={volume.toLocaleString('pt-BR')} onChange={(e) => setVolume(parseDigits(e.target.value))} />
             </div>
+            <div className="field">
+              <label htmlFor="icms">Alíquota de ICMS (opcional)</label>
+              <div className="money-input"><span className="prefix">%</span>
+                <input id="icms" type="text" inputMode="decimal" value={moneyDisplay(icmsCentesimos)} onChange={(e) => setIcmsCentesimos(parseDigits(e.target.value))} />
+              </div>
+            </div>
           </div>
 
           <div className="form-actions">
@@ -447,7 +458,7 @@ export default function AppPage() {
             <div className="cards-row cards-row-2">
               <div className="card" data-tone="blue">
                 <div className="card-icon"><IconCoin /></div>
-                <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">preço - custo</div>
+                <div className="card-label">Lucro por unidade (atual)</div><div className="card-value">{formatBRL(m.lucroUnitario)}</div><div className="card-sub">{v.icmsPercentual > 0 ? `preço - custo - ICMS (${formatBRL(m.icmsValor)})` : 'preço - custo'}</div>
               </div>
               <div className="card" data-tone="blue">
                 <div className="card-icon"><IconWallet /></div>
@@ -461,7 +472,7 @@ export default function AppPage() {
             <div className="cards-row cards-row-2">
               <div className="card" data-tone="green">
                 <div className="card-icon"><IconCoin /></div>
-                <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">com o sell-out</div>
+                <div className="card-label">Novo lucro por unidade</div><div className="card-value">{formatBRL(m.novoLucroUnitario)}</div><div className="card-sub">{v.icmsPercentual > 0 ? 'com sell-out e ICMS' : 'com o sell-out'}</div>
               </div>
               <div className="card" data-tone="green">
                 <div className="card-icon"><IconWallet /></div>
@@ -546,7 +557,7 @@ export default function AppPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Produto</th><th>Custo</th><th>Preço</th><th>Margem atual</th><th>Sell-out</th>
+                  <th>Produto</th><th>Custo</th><th>Preço</th><th>ICMS</th><th>Margem atual</th><th>Sell-out</th>
                   <th>Nova margem</th><th>Volume</th><th>Investimento</th><th>Data</th><th>Ações</th>
                 </tr>
               </thead>
@@ -556,6 +567,7 @@ export default function AppPage() {
                     <td className="cell-produto">{r.produto} {r.is_shared && <span className="share-pill">compartilhado</span>}</td>
                     <td>{formatBRL(r.custo)}</td>
                     <td>{formatBRL(r.preco)}</td>
+                    <td>{r.icms_percentual ? formatPct(r.icms_percentual) : '-'}</td>
                     <td>{formatPct(rm.margemAtual)}</td>
                     <td>{formatBRL(r.sellout)}</td>
                     <td>{formatPct(rm.novaMargem)}</td>
@@ -589,6 +601,7 @@ export default function AppPage() {
             <div className="compare-row"><span>Data</span><span>{formatDate(modalRecord.r.created_at)}</span></div>
             <div className="compare-row"><span>Custo atual</span><span>{formatBRL(modalRecord.r.custo)}</span></div>
             <div className="compare-row"><span>Preço de venda</span><span>{formatBRL(modalRecord.r.preco)}</span></div>
+            {modalRecord.r.icms_percentual > 0 && <div className="compare-row"><span>Alíquota de ICMS</span><span>{formatPct(modalRecord.r.icms_percentual)}</span></div>}
             <div className="compare-row"><span>Sell-out por unidade</span><span>{formatBRL(modalRecord.r.sellout)}</span></div>
             <div className="compare-row"><span>Volume</span><span>{modalRecord.r.volume.toLocaleString('pt-BR')}</span></div>
             <div className="compare-row"><span>Margem atual</span><span>{formatPct(modalRecord.rm.margemAtual)}</span></div>
