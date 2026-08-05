@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '../../lib/supabase/client';
+import LetrumMark from '../LetrumMark';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function SignupPage() {
   return (
     <div className="page-narrow">
       <div className="auth-brand">
-        <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>L</div>
+        <LetrumMark size={48} />
       </div>
       <div className="auth-card">
         <h1>Criar conta grátis</h1>
