@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import LetrumMark from './LetrumMark';
 
 function IconBolt() {
   return (
@@ -28,7 +29,7 @@ export default function LandingPage() {
     <>
       <nav className="nav">
         <div className="top-bar-left" style={{ color: 'var(--blue-deep)' }}>
-          <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>L</div>
+          <LetrumMark size={40} />
           <strong style={{ fontFamily: 'var(--font-display)' }}>Letrum</strong>
         </div>
         <div className="nav-links">
