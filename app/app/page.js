@@ -316,7 +316,7 @@ export default function AppPage() {
   return (
     <div className="page">
       <div className="print-sheet">
-        <h2>Simulador de Margem e Sell-out</h2>
+        <h2>Letrum</h2>
         <p>Histórico de simulações, gerado em {new Date().toLocaleDateString('pt-BR')}</p>
         <table>
           <thead>
@@ -345,9 +345,9 @@ export default function AppPage() {
 
       <header className="top-bar">
         <div className="top-bar-left">
-          <div className="brand-mark">M+S</div>
+          <div className="brand-mark">L</div>
           <div>
-            <h1>Simulador de Margem e Sell-out</h1>
+            <h1>Letrum</h1>
             <p className="tagline">{user?.email}</p>
           </div>
         </div>
@@ -594,7 +594,7 @@ export default function AppPage() {
         )}
       </section>
 
-      <footer className="page-footer">Simulador de Margem e Sell-out, os dados ficam salvos na sua conta.</footer>
+      <footer className="page-footer">Letrum, os dados ficam salvos na sua conta.</footer>
 
       {modalRecord && (
         <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(15,27,51,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }} onClick={(e) => { if (e.target === e.currentTarget) setModalRecord(null); }}>
