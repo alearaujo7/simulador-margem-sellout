@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { createClient } from '../../lib/supabase/client';
 import { formatBRL } from '../../lib/calc';
 
-function IconUpload() {
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4L7 9M12 4L17 9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 16V18.5C4 19.88 5.12 21 6.5 21H17.5C18.88 21 20 19.88 20 18.5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
+function IconPlus() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
 }
 function IconSearch() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="10.5" cy="10.5" r="6.5" stroke="currentColor" strokeWidth="1.8" /><path d="M20 20L15.2 15.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>;
@@ -17,169 +16,33 @@ function IconTrashSmall() {
 
 function normalizeHeader(h) {
   return String(h == null ? '' : h)
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]/g, '');
 }
-
-// Ordem importa: categorias mais específicas primeiro, pra "custo" não
-// ser roubado por um padrão largo de "preço", por exemplo.
-const FIELD_PATTERNS = [
-  ['codigo', ['codbarras', 'codigobarras', 'codigo', 'cod', 'ean', 'sku', 'referencia', 'ref']],
-  ['produto', ['produto', 'descricao', 'descr', 'nome', 'item', 'mercadoria', 'material']],
-  ['custo', ['custo', 'compra', 'aquisicao']],
-  ['preco', ['precovenda', 'valorvenda', 'vendaunit', 'preco', 'valor', 'venda', 'vlr', 'tabela']],
-];
-
-function parseNumber(val) {
-  if (typeof val === 'number') return val;
-  if (val === null || val === undefined) return null;
-  const s = String(val).trim().replace(/[R$\s]/g, '');
-  if (s === '') return null;
-  // aceita tanto "1.234,56" quanto "1234.56"
-  const normalized = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
-  const n = parseFloat(normalized);
-  return isNaN(n) ? null : n;
+function moneyDisplay(cents) {
+  return (cents / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
-// Detecta, numa linha de cabeçalho candidata, quais colunas correspondem
-// a código, produto, custo e preço. Cada coluna só pode ser usada uma vez.
-function detectColumns(headerRow) {
-  const map = {};
-  const used = new Set();
-  headerRow.forEach((cell, colIndex) => {
-    if (used.has(colIndex)) return;
-    const norm = normalizeHeader(cell);
-    if (!norm) return;
-    for (const [field, patterns] of FIELD_PATTERNS) {
-      if (map[field] !== undefined) continue;
-      if (patterns.some((p) => norm.includes(p))) {
-        map[field] = colIndex;
-        used.add(colIndex);
-        break;
-      }
-    }
-  });
-  return map;
-}
-
-function scoreColumns(map) {
-  return Object.keys(map).length;
-}
-
-// Se houver mais de uma coluna com nome parecido com "código" (ex.: código
-// de categoria E código de barras), o texto do cabeçalho sozinho não resolve
-// qual é a certa. Aqui a gente checa os DADOS: a coluna que realmente é um
-// código de produto tem valores quase todos diferentes entre si; uma coluna
-// de categoria/departamento se repete muito. Ganha quem tiver mais valores
-// únicos.
-const CODIGO_PATTERNS = FIELD_PATTERNS[0][1];
-
-function findCodigoCandidates(headerRow) {
-  const candidates = [];
-  headerRow.forEach((cell, colIndex) => {
-    const norm = normalizeHeader(cell);
-    if (norm && CODIGO_PATTERNS.some((p) => norm.includes(p))) {
-      candidates.push(colIndex);
-    }
-  });
-  return candidates;
-}
-
-function uniquenessRatio(rows, startRow, colIndex) {
-  const seen = new Set();
-  let nonEmpty = 0;
-  for (let i = startRow; i < rows.length; i++) {
-    const v = String(rows[i]?.[colIndex] ?? '').trim();
-    if (!v) continue;
-    nonEmpty += 1;
-    seen.add(v);
-  }
-  return nonEmpty === 0 ? 0 : seen.size / nonEmpty;
-}
-
-function pickBestCodigoColumn(rows, headerRowIndex, map) {
-  const candidates = findCodigoCandidates(rows[headerRowIndex] || []);
-  if (candidates.length <= 1) return map.codigo;
-  let bestCol = map.codigo;
-  let bestScore = uniquenessRatio(rows, headerRowIndex + 1, bestCol);
-  for (const colIndex of candidates) {
-    if (colIndex === bestCol) continue;
-    const score = uniquenessRatio(rows, headerRowIndex + 1, colIndex);
-    if (score > bestScore) {
-      bestScore = score;
-      bestCol = colIndex;
-    }
-  }
-  return bestCol;
-}
-
-// Varre as primeiras linhas de uma planilha procurando a linha de cabeçalho
-// (nem sempre é a linha 1: pode ter um título ou linhas em branco acima).
-function findHeaderRow(rows) {
-  let best = { rowIndex: -1, map: {}, score: 0 };
-  const limit = Math.min(rows.length, 15);
-  for (let i = 0; i < limit; i++) {
-    const map = detectColumns(rows[i] || []);
-    const score = scoreColumns(map);
-    if (score > best.score) best = { rowIndex: i, map, score };
-  }
-  return best;
-}
-
-function parseWorkbookRows(workbook) {
-  let best = null;
-  let firstSheetHeaderPreview = [];
-
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', blankrows: false });
-    if (rows.length === 0) continue;
-    if (firstSheetHeaderPreview.length === 0) firstSheetHeaderPreview = rows[0];
-
-    const headerInfo = findHeaderRow(rows);
-    // precisa achar pelo menos codigo + produto + preco pra essa aba valer
-    const hasEssentials = headerInfo.map.codigo !== undefined && headerInfo.map.produto !== undefined && headerInfo.map.preco !== undefined;
-    if (hasEssentials && (!best || headerInfo.score > best.headerInfo.score)) {
-      best = { rows, headerInfo };
-    }
-  }
-
-  if (!best) {
-    return { rows: [], skipped: 0, detectedHeaders: firstSheetHeaderPreview.map((h) => String(h)).filter(Boolean) };
-  }
-
-  const { rows, headerInfo } = best;
-  const { map, rowIndex } = headerInfo;
-  map.codigo = pickBestCodigoColumn(rows, rowIndex, map);
-  const result = [];
-  let skipped = 0;
-
-  for (let i = rowIndex + 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (!row || row.length === 0) continue;
-    const codigo = map.codigo !== undefined ? String(row[map.codigo] ?? '').trim() : '';
-    const produto = map.produto !== undefined ? String(row[map.produto] ?? '').trim() : '';
-    const preco = map.preco !== undefined ? parseNumber(row[map.preco]) : null;
-    const custo = map.custo !== undefined ? parseNumber(row[map.custo]) : null;
-    if (!codigo || !produto || preco === null) {
-      skipped += 1;
-      continue;
-    }
-    result.push({ codigo, produto, preco, custo });
-  }
-
-  return { rows: result, skipped };
+function parseDigits(value) {
+  let d = value.replace(/\D/g, '');
+  d = d.replace(/^0+(?=\d)/, '');
+  if (d === '') d = '0';
+  return parseInt(d, 10);
 }
 
 export default function PriceListPanel({ onUseProduct }) {
   const [userId, setUserId] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
-  const [uploadMessage, setUploadMessage] = useState(null);
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(false);
-  const fileInputRef = useRef(null);
+
+  const [novoProduto, setNovoProduto] = useState('');
+  const [novoCodigo, setNovoCodigo] = useState('');
+  const [novoCustoCents, setNovoCustoCents] = useState(0);
+  const [novoPrecoCents, setNovoPrecoCents] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [formMessage, setFormMessage] = useState(null);
+  const produtoInputRef = useRef(null);
 
   async function loadItems(uid) {
     const supabase = createClient();
@@ -201,62 +64,41 @@ export default function PriceListPanel({ onUseProduct }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file || !userId) return;
-    setUploading(true);
-    setUploadMessage(null);
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      const { rows, skipped, detectedHeaders } = parseWorkbookRows(workbook);
-
-      if (rows.length === 0) {
-        const headersList = detectedHeaders && detectedHeaders.length > 0
-          ? ` Encontrei estas colunas na primeira linha: ${detectedHeaders.join(', ')}.`
-          : '';
-        setUploadMessage({
-          ok: false,
-          text: `Não consegui reconhecer as colunas de código, produto e preço nesse arquivo.${headersList} Renomeie a coluna de preço para algo como "Preço" ou "Valor", e a de código para "Código", "EAN" ou "SKU".`,
-        });
-        setUploading(false);
-        return;
-      }
-
-      // Se o mesmo código aparece mais de uma vez na planilha, a lista final
-      // ficaria com um código repetido. Mantemos só a última ocorrência.
-      const dedupMap = new Map();
-      let duplicatesSkipped = 0;
-      for (const r of rows) {
-        if (dedupMap.has(r.codigo)) duplicatesSkipped += 1;
-        dedupMap.set(r.codigo, r);
-      }
-      const dedupedRows = Array.from(dedupMap.values());
-
-      const supabase = createClient();
-      // Substitui a lista inteira numa única operação (apaga a lista antiga
-      // e insere a nova), pra nunca sobrar registro de uma importação anterior.
-      const { error } = await supabase.rpc('replace_price_list', { items: dedupedRows });
-      if (error) throw error;
-
-      await loadItems(userId);
-      const avisos = [];
-      if (skipped > 0) avisos.push(`${skipped} linha(s) ignorada(s) por falta de código, produto ou preço`);
-      if (duplicatesSkipped > 0) avisos.push(`${duplicatesSkipped} código(s) repetido(s) na planilha, mantida a última ocorrência de cada um`);
-      const taxaDuplicados = rows.length > 0 ? duplicatesSkipped / rows.length : 0;
-      const ok = taxaDuplicados < 0.3;
-      if (!ok) {
-        avisos.push('isso é bastante repetição para uma lista de produtos, confira se a coluna de código na sua planilha é mesmo o código único de cada item (EAN/SKU), e não um código de categoria ou departamento');
-      }
-      setUploadMessage({
-        ok,
-        text: `Lista atualizada: ${dedupedRows.length.toLocaleString('pt-BR')} produtos.${avisos.length > 0 ? ' ' + avisos.join('. ') + '.' : ''}`,
-      });
-    } catch (err) {
-      setUploadMessage({ ok: false, text: err.message || 'Não foi possível importar o arquivo.' });
+  async function handleAdd() {
+    if (!novoProduto.trim()) {
+      setFormMessage({ ok: false, text: 'Informe o nome do produto.' });
+      return;
     }
-    setUploading(false);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (novoPrecoCents <= 0) {
+      setFormMessage({ ok: false, text: 'Informe um preço válido.' });
+      return;
+    }
+    setAdding(true);
+    setFormMessage(null);
+    const supabase = createClient();
+    const { error } = await supabase.from('price_items').insert({
+      user_id: userId,
+      codigo: novoCodigo.trim() || null,
+      produto: novoProduto.trim(),
+      custo: novoCustoCents > 0 ? novoCustoCents / 100 : null,
+      preco: novoPrecoCents / 100,
+    });
+    setAdding(false);
+    if (error) {
+      const msg = error.code === '23505'
+        ? 'Esse código já está na sua lista. Use outro código ou deixe em branco.'
+        : (error.message || 'Não foi possível adicionar o produto.');
+      setFormMessage({ ok: false, text: msg });
+      return;
+    }
+    setNovoProduto('');
+    setNovoCodigo('');
+    setNovoCustoCents(0);
+    setNovoPrecoCents(0);
+    setFormMessage({ ok: true, text: 'Produto adicionado.' });
+    setTimeout(() => setFormMessage(null), 2000);
+    await loadItems(userId);
+    produtoInputRef.current?.focus();
   }
 
   async function handleDeleteItem(item) {
@@ -277,7 +119,7 @@ export default function PriceListPanel({ onUseProduct }) {
 
   const searchNorm = normalizeHeader(search);
   const filtered = search.trim() === '' ? [] : items.filter((it) => {
-    return normalizeHeader(it.codigo).includes(searchNorm) || normalizeHeader(it.produto).includes(searchNorm);
+    return normalizeHeader(it.codigo || '').includes(searchNorm) || normalizeHeader(it.produto).includes(searchNorm);
   }).slice(0, 8);
 
   function handlePick(item) {
@@ -289,27 +131,47 @@ export default function PriceListPanel({ onUseProduct }) {
 
   return (
     <section className="panel">
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h2>Minha lista de preços</h2>
-          <p className="panel-hint">Importe sua planilha e busque um produto pelo código ou EAN para preencher a simulação.</p>
+      <h2>Minha lista de preços</h2>
+      <p className="panel-hint">Adicione os produtos que você mais usa e busque pelo código ou nome pra preencher a simulação rapidinho.</p>
+
+      <div className="field-grid" style={{ marginTop: 16 }}>
+        <div className="field">
+          <label htmlFor="novoProduto">Nome do produto</label>
+          <input
+            id="novoProduto" ref={produtoInputRef} type="text" value={novoProduto}
+            onChange={(e) => setNovoProduto(e.target.value)} placeholder="Ex.: Sabonete Dove 90g"
+          />
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" className="btn btn-ghost btn-small" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            <IconUpload />{uploading ? 'Importando...' : 'Importar Excel'}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFile} className="hidden" />
+        <div className="field">
+          <label htmlFor="novoCodigo">Código ou EAN (opcional)</label>
+          <input
+            id="novoCodigo" type="text" value={novoCodigo}
+            onChange={(e) => setNovoCodigo(e.target.value)} placeholder="Ex.: 7891000100103"
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="novoCusto">Custo (opcional)</label>
+          <div className="money-input"><span className="prefix">R$</span>
+            <input id="novoCusto" type="text" inputMode="decimal" value={moneyDisplay(novoCustoCents)} onChange={(e) => setNovoCustoCents(parseDigits(e.target.value))} />
+          </div>
+        </div>
+        <div className="field">
+          <label htmlFor="novoPreco">Preço</label>
+          <div className="money-input"><span className="prefix">R$</span>
+            <input id="novoPreco" type="text" inputMode="decimal" value={moneyDisplay(novoPrecoCents)} onChange={(e) => setNovoPrecoCents(parseDigits(e.target.value))} />
+          </div>
         </div>
       </div>
 
-      {uploadMessage && (
-        <div className={`alert ${uploadMessage.ok ? 'alert--success' : 'alert--error'}`} style={{ marginTop: 14 }}>
-          {uploadMessage.text}
-        </div>
-      )}
+      <div className="form-actions">
+        <button type="button" className="btn btn-primary btn-small" onClick={handleAdd} disabled={adding}>
+          <IconPlus />{adding ? 'Adicionando...' : 'Adicionar produto'}
+        </button>
+        {formMessage && <span className={`save-message ${formMessage.ok ? 'ok' : ''}`}>{formMessage.text}</span>}
+      </div>
 
       {items.length === 0 ? (
-        <p className="empty-state">Nenhuma lista importada ainda. Sua planilha deve ter colunas de código (ou EAN), produto e preço, e opcionalmente custo.</p>
+        <p className="empty-state">Nenhum produto na sua lista ainda. Adicione o primeiro acima.</p>
       ) : (
         <>
           <div className="field" style={{ marginTop: 18 }}>
@@ -334,7 +196,7 @@ export default function PriceListPanel({ onUseProduct }) {
                     {filtered.map((it) => (
                       <tr key={it.id} style={{ cursor: 'pointer' }} onClick={() => handlePick(it)}>
                         <td className="cell-produto">{it.produto}</td>
-                        <td>{it.codigo}</td>
+                        <td>{it.codigo || '-'}</td>
                         <td>{formatBRL(it.preco)}</td>
                         <td style={{ textAlign: 'right' }}><button type="button" className="btn btn-primary btn-small" onClick={(e) => { e.stopPropagation(); handlePick(it); }}>Usar</button></td>
                       </tr>
@@ -362,7 +224,7 @@ export default function PriceListPanel({ onUseProduct }) {
                   {items.map((it) => (
                     <tr key={it.id}>
                       <td className="cell-produto">{it.produto}</td>
-                      <td>{it.codigo}</td>
+                      <td>{it.codigo || '-'}</td>
                       <td>{it.custo !== null && it.custo !== undefined ? formatBRL(it.custo) : '-'}</td>
                       <td>{formatBRL(it.preco)}</td>
                       <td>
