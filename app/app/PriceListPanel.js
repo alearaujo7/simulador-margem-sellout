@@ -175,7 +175,18 @@ export default function PriceListPanel({ onUseProduct }) {
         return;
       }
 
-      const payload = rows.map((r) => ({ ...r, user_id: userId }));
+      // Se o mesmo código aparece mais de uma vez na planilha, o banco de dados
+      // recusa a importação (não permite atualizar a mesma linha duas vezes de
+      // uma vez). Mantemos só a última ocorrência de cada código.
+      const dedupMap = new Map();
+      let duplicatesSkipped = 0;
+      for (const r of rows) {
+        if (dedupMap.has(r.codigo)) duplicatesSkipped += 1;
+        dedupMap.set(r.codigo, r);
+      }
+      const dedupedRows = Array.from(dedupMap.values());
+
+      const payload = dedupedRows.map((r) => ({ ...r, user_id: userId }));
       const supabase = createClient();
       // envia em lotes de 500 para evitar payloads gigantes
       for (let i = 0; i < payload.length; i += 500) {
@@ -185,9 +196,12 @@ export default function PriceListPanel({ onUseProduct }) {
       }
 
       await loadItems(userId);
+      const avisos = [];
+      if (skipped > 0) avisos.push(`${skipped} linha(s) ignorada(s) por falta de código, produto ou preço`);
+      if (duplicatesSkipped > 0) avisos.push(`${duplicatesSkipped} código(s) repetido(s) na planilha, mantida a última ocorrência de cada um`);
       setUploadMessage({
         ok: true,
-        text: `${rows.length.toLocaleString('pt-BR')} produtos importados.${skipped > 0 ? ` ${skipped} linha(s) ignorada(s) por falta de código, produto ou preço.` : ''}`,
+        text: `${dedupedRows.length.toLocaleString('pt-BR')} produtos importados.${avisos.length > 0 ? ' ' + avisos.join('. ') + '.' : ''}`,
       });
     } catch (err) {
       setUploadMessage({ ok: false, text: err.message || 'Não foi possível importar o arquivo.' });
