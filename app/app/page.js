@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { createClient } from '../../lib/supabase/client';
-import PriceListPanel from './PriceListPanel';
 import LetrumMark from '../LetrumMark';
 import {
   computeMetrics, validate, formatBRL, formatPct, formatPPCard, numPT, buildSummary,
@@ -185,19 +184,6 @@ export default function AppPage() {
     document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  function handleUseProduct(item) {
-    setProduto(item.produto);
-    const precoDaLista = Math.round((item.preco || 0) * 100);
-    const custoDaLista = (item.custo !== null && item.custo !== undefined)
-      ? Math.round(item.custo * 100)
-      : precoDaLista; // sem coluna de custo na planilha: usa o próprio preço da lista como ponto de partida
-    setPrecoCents(precoDaLista);
-    setCustoCents(custoDaLista);
-    setSaveMessage(null);
-    document.getElementById('sellout')?.focus();
-    document.getElementById('painel-simulacao')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
   async function handleSave() {
     if (!produto.trim()) {
       setSaveMessage({ text: 'Informe o nome do produto antes de salvar.', ok: false });
@@ -366,8 +352,6 @@ export default function AppPage() {
       )}
 
       {toast && <div className={`alert ${toast.ok ? 'alert--success' : 'alert--error'}`}>{toast.text}</div>}
-
-      <PriceListPanel onUseProduct={handleUseProduct} />
 
       <div className="layout" id="painel-simulacao">
         <section className="panel">
