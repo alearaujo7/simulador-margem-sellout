@@ -223,9 +223,8 @@ export default function PriceListPanel({ onUseProduct }) {
         return;
       }
 
-      // Se o mesmo código aparece mais de uma vez na planilha, o banco de dados
-      // recusa a importação (não permite atualizar a mesma linha duas vezes de
-      // uma vez). Mantemos só a última ocorrência de cada código.
+      // Se o mesmo código aparece mais de uma vez na planilha, a lista final
+      // ficaria com um código repetido. Mantemos só a última ocorrência.
       const dedupMap = new Map();
       let duplicatesSkipped = 0;
       for (const r of rows) {
@@ -234,14 +233,11 @@ export default function PriceListPanel({ onUseProduct }) {
       }
       const dedupedRows = Array.from(dedupMap.values());
 
-      const payload = dedupedRows.map((r) => ({ ...r, user_id: userId }));
       const supabase = createClient();
-      // envia em lotes de 500 para evitar payloads gigantes
-      for (let i = 0; i < payload.length; i += 500) {
-        const batch = payload.slice(i, i + 500);
-        const { error } = await supabase.from('price_items').upsert(batch, { onConflict: 'user_id,codigo' });
-        if (error) throw error;
-      }
+      // Substitui a lista inteira numa única operação (apaga a lista antiga
+      // e insere a nova), pra nunca sobrar registro de uma importação anterior.
+      const { error } = await supabase.rpc('replace_price_list', { items: dedupedRows });
+      if (error) throw error;
 
       await loadItems(userId);
       const avisos = [];
@@ -254,7 +250,7 @@ export default function PriceListPanel({ onUseProduct }) {
       }
       setUploadMessage({
         ok,
-        text: `${dedupedRows.length.toLocaleString('pt-BR')} produtos importados.${avisos.length > 0 ? ' ' + avisos.join('. ') + '.' : ''}`,
+        text: `Lista atualizada: ${dedupedRows.length.toLocaleString('pt-BR')} produtos.${avisos.length > 0 ? ' ' + avisos.join('. ') + '.' : ''}`,
       });
     } catch (err) {
       setUploadMessage({ ok: false, text: err.message || 'Não foi possível importar o arquivo.' });
