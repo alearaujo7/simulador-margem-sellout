@@ -28,8 +28,8 @@ export default function LandingPage() {
     <>
       <nav className="nav">
         <div className="top-bar-left" style={{ color: 'var(--blue-deep)' }}>
-          <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>M+S</div>
-          <strong style={{ fontFamily: 'var(--font-display)' }}>Simulador de Margem e Sell-out</strong>
+          <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>L</div>
+          <strong style={{ fontFamily: 'var(--font-display)' }}>Letrum</strong>
         </div>
         <div className="nav-links">
           <Link href="/entrar" className="btn btn-ghost">Entrar</Link>
@@ -75,7 +75,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="footer">Simulador de Margem e Sell-out, feito para vendedores negociarem com segurança.</footer>
+      <footer className="footer">Letrum, feito para vendedores negociarem com segurança.</footer>
     </>
   );
 }
