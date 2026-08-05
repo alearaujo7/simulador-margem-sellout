@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import * as XLSX from 'xlsx';
 import { createClient } from '../../lib/supabase/client';
 import PriceListPanel from './PriceListPanel';
+import LetrumMark from '../LetrumMark';
 import {
   computeMetrics, validate, formatBRL, formatPct, formatPPCard, numPT, buildSummary,
 } from '../../lib/calc';
@@ -345,7 +346,7 @@ export default function AppPage() {
 
       <header className="top-bar">
         <div className="top-bar-left">
-          <div className="brand-mark">L</div>
+          <LetrumMark size={46} />
           <div>
             <h1>Letrum</h1>
             <p className="tagline">{user?.email}</p>
