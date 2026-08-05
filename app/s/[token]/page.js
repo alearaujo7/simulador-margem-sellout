@@ -34,10 +34,10 @@ export default async function SharedSimulationPage({ params }) {
     <div className="page">
       <header className="top-bar">
         <div className="top-bar-left">
-          <div className="brand-mark">M+S</div>
+          <div className="brand-mark">L</div>
           <div>
             <h1>{record.produto}</h1>
-            <p className="tagline">Simulação compartilhada — somente leitura</p>
+            <p className="tagline">Simulação compartilhada, somente leitura</p>
           </div>
         </div>
       </header>
@@ -80,7 +80,7 @@ export default async function SharedSimulationPage({ params }) {
       </section>
 
       <footer className="page-footer">
-        Gerado com o Simulador de Margem e Sell-out — <Link href="/" style={{ color: 'var(--blue)' }}>crie sua conta grátis</Link>.
+        Gerado com o Letrum, <Link href="/" style={{ color: 'var(--blue)' }}>crie sua conta grátis</Link>.
       </footer>
     </div>
   );
