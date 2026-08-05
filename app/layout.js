@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Simulador de Margem e Sell-out',
+  title: 'Letrum | Simulador de Margem e Sell-out',
   description: 'Simule condições comerciais e veja em tempo real o impacto do sell-out na margem do cliente.',
 };
 
