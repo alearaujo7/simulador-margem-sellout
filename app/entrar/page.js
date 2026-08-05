@@ -34,11 +34,11 @@ export default function LoginPage() {
   return (
     <div className="page-narrow">
       <div className="auth-brand">
-        <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>M+S</div>
+        <div className="brand-mark" style={{ background: 'var(--blue-soft)', color: 'var(--blue)', border: 'none' }}>L</div>
       </div>
       <div className="auth-card">
         <h1>Entrar</h1>
-        <p className="sub">Acesse seu Simulador de Margem e Sell-out.</p>
+        <p className="sub">Acesse sua conta Letrum.</p>
 
         <form onSubmit={handleSubmit}>
           <div className="field">
