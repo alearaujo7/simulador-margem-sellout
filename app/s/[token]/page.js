@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createPublicClient } from '../../../lib/supabase/publicClient';
 import { computeMetrics, formatBRL, formatPct, buildSummary } from '../../../lib/calc';
+import LetrumMark from '../../LetrumMark';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +35,7 @@ export default async function SharedSimulationPage({ params }) {
     <div className="page">
       <header className="top-bar">
         <div className="top-bar-left">
-          <div className="brand-mark">L</div>
+          <LetrumMark size={46} />
           <div>
             <h1>{record.produto}</h1>
             <p className="tagline">Simulação compartilhada, somente leitura</p>
