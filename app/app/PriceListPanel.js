@@ -66,6 +66,53 @@ function scoreColumns(map) {
   return Object.keys(map).length;
 }
 
+// Se houver mais de uma coluna com nome parecido com "código" (ex.: código
+// de categoria E código de barras), o texto do cabeçalho sozinho não resolve
+// qual é a certa. Aqui a gente checa os DADOS: a coluna que realmente é um
+// código de produto tem valores quase todos diferentes entre si; uma coluna
+// de categoria/departamento se repete muito. Ganha quem tiver mais valores
+// únicos.
+const CODIGO_PATTERNS = FIELD_PATTERNS[0][1];
+
+function findCodigoCandidates(headerRow) {
+  const candidates = [];
+  headerRow.forEach((cell, colIndex) => {
+    const norm = normalizeHeader(cell);
+    if (norm && CODIGO_PATTERNS.some((p) => norm.includes(p))) {
+      candidates.push(colIndex);
+    }
+  });
+  return candidates;
+}
+
+function uniquenessRatio(rows, startRow, colIndex) {
+  const seen = new Set();
+  let nonEmpty = 0;
+  for (let i = startRow; i < rows.length; i++) {
+    const v = String(rows[i]?.[colIndex] ?? '').trim();
+    if (!v) continue;
+    nonEmpty += 1;
+    seen.add(v);
+  }
+  return nonEmpty === 0 ? 0 : seen.size / nonEmpty;
+}
+
+function pickBestCodigoColumn(rows, headerRowIndex, map) {
+  const candidates = findCodigoCandidates(rows[headerRowIndex] || []);
+  if (candidates.length <= 1) return map.codigo;
+  let bestCol = map.codigo;
+  let bestScore = uniquenessRatio(rows, headerRowIndex + 1, bestCol);
+  for (const colIndex of candidates) {
+    if (colIndex === bestCol) continue;
+    const score = uniquenessRatio(rows, headerRowIndex + 1, colIndex);
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = colIndex;
+    }
+  }
+  return bestCol;
+}
+
 // Varre as primeiras linhas de uma planilha procurando a linha de cabeçalho
 // (nem sempre é a linha 1: pode ter um título ou linhas em branco acima).
 function findHeaderRow(rows) {
@@ -103,6 +150,7 @@ function parseWorkbookRows(workbook) {
 
   const { rows, headerInfo } = best;
   const { map, rowIndex } = headerInfo;
+  map.codigo = pickBestCodigoColumn(rows, rowIndex, map);
   const result = [];
   let skipped = 0;
 
@@ -199,8 +247,13 @@ export default function PriceListPanel({ onUseProduct }) {
       const avisos = [];
       if (skipped > 0) avisos.push(`${skipped} linha(s) ignorada(s) por falta de código, produto ou preço`);
       if (duplicatesSkipped > 0) avisos.push(`${duplicatesSkipped} código(s) repetido(s) na planilha, mantida a última ocorrência de cada um`);
+      const taxaDuplicados = rows.length > 0 ? duplicatesSkipped / rows.length : 0;
+      const ok = taxaDuplicados < 0.3;
+      if (!ok) {
+        avisos.push('isso é bastante repetição para uma lista de produtos, confira se a coluna de código na sua planilha é mesmo o código único de cada item (EAN/SKU), e não um código de categoria ou departamento');
+      }
       setUploadMessage({
-        ok: true,
+        ok,
         text: `${dedupedRows.length.toLocaleString('pt-BR')} produtos importados.${avisos.length > 0 ? ' ' + avisos.join('. ') + '.' : ''}`,
       });
     } catch (err) {
